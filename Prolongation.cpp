@@ -10,6 +10,25 @@ the data on a fine grid.
 
 using namespace std;
 
+// allocate a matrix 
+double **allocate_mat(int row, int col){
+    double** M = new double*[row];
+    for(int i=0; i<row; i++){
+        M[i] = new double[col];
+    }
+    return M;
+}
+
+// initialize matrix
+void initialize_mat(double **m, int row, int col)
+{
+    for(auto i = 0; i < row; ++i) {
+        for(auto j = 0; j < col; ++j) {
+            m[i][j] = 0;
+        }
+    }
+}
+
 int main() {
     int n=4;
     double *x1 = new double[n]; //coarse grid
@@ -21,10 +40,8 @@ int main() {
     }
 
     // allocate interpolation matrix
-    double** I_ctof= new double*[2*n-1];
-    for(int i=0; i<2*n-1; i++) {
-        I_ctof[i] = new double[n];
-    }  
+    double** I_ctof = allocate_mat(2*n-1, n);
+    initialize_mat(I_ctof, 2*n-1, n);
 
     // generate interpolation matrix
     for(int i=0; i<2*n-1; i++){
@@ -39,9 +56,6 @@ int main() {
         }
         cout<<endl;
     }
-
-    // issues: the matirx default values are not zero
-
 
     return 1;
 }
