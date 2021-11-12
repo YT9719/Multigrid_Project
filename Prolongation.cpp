@@ -12,14 +12,14 @@ using namespace std;
 
 // allocate a matrix 
 double **allocate_mat(int row, int col){
-    double** M = new double*[row];
+    double** m = new double*[row];
     for(int i=0; i<row; i++){
-        M[i] = new double[col];
+        m[i] = new double[col];
     }
-    return M;
+    return m;
 }
 
-// initialize matrix
+// initialize a matrix
 void initialize_mat(double **m, int row, int col)
 {
     for(auto i = 0; i < row; ++i) {
@@ -28,6 +28,20 @@ void initialize_mat(double **m, int row, int col)
         }
     }
 }
+
+// matrix and vector multiply
+double *multiply_mv(double **m, int row, int col, double *v){
+    double *b = new double[row];
+    for(int i=0; i<row; i++){
+        double sum=0;
+        for(int j=0; j<col; j++){
+            sum = sum + m[i][j]*v[j];
+        }
+        b[i] = sum;
+    }
+    return b;
+}
+
 
 int main() {
     int n=4;
@@ -49,12 +63,19 @@ int main() {
         else{int j=(i-1)/2; I_ctof[i][j]=0.5; I_ctof[i][j+1]=0.5;} // arithmetic average
     }
 
-    // print interpolation matrix
+    // print x1 vector
+    cout<<"x1:"<<endl;
+    for(int i=0; i<n; i++){
+        cout<<x1[i]<<endl;
+    }
+
+    // apply interpolation matrix to the coarse grid
+    x2 = multiply_mv(I_ctof, 2*n-1, n, x1);
+
+    // print x2 vector
+    cout<<"x2:"<<endl;
     for(int i=0; i<2*n-1; i++){
-        for(int j=0; j<n; j++){
-            cout<<I_ctof[i][j]<<"   ";
-        }
-        cout<<endl;
+        cout<<x2[i]<<endl;
     }
 
     return 1;
