@@ -13,48 +13,10 @@ Right now, the code focuses on a 1D problem.
 #define _USE_MATH_DEFINES //to include the mathematical constants
 #include <iostream>
 #include <iomanip> // include the setprecision funtion
-#include <cmath> //include math functions
+#include <cmath> // include math functions
+#include "multigrid.h" // include all modules and functions
 
 using namespace std;
-
-// allocate a matrix 
-double **allocate_mat(int row, int col){
-    double** m = new double*[row];
-    for(int i=0; i<row; i++){
-        m[i] = new double[col];
-    }
-    return m;
-}
-
-// initialize a matrix
-void initialize_mat(double **m, int row, int col)
-{
-    for(auto i = 0; i < row; ++i) {
-        for(auto j = 0; j < col; ++j) {
-            m[i][j] = 0;
-        }
-    }
-}
-
-// matrix and vector multiplication
-double *multiply_mv(double **m, int row, int col, double *v){
-    double *b = new double[row];
-    for(int i=0; i<row; i++){
-        double sum=0;
-        for(int j=0; j<col; j++){
-            sum = sum + m[i][j]*v[j];
-        }
-        b[i] = sum;
-    }
-    return b;
-}
-
-// print vector
-void print_v(double* v, int n){
-    for(int i=0; i<n; i++){
-        cout<<fixed<<setprecision(5)<<v[i]<<endl;
-    }
-}
 
 int main() {
     int n=4;
@@ -67,39 +29,18 @@ int main() {
         x1[i] = sin(i*M_PI/n);
     }
 
-    // allocate prolongation matrix
-    double** P = allocate_mat(2*n-1, n);
-    initialize_mat(P, 2*n-1, n);
-
-    // generate prolongation matrix
-    for(int i=0; i<2*n-1; i++){
-        if(i%2 == 0){P[i][i/2]=1;} // same value
-        else{int j=(i-1)/2; P[i][j]=0.5; P[i][j+1]=0.5;} // arithmetic average
-    }
-
     // print x1 vector
     cout<<"x1:"<<endl;
     print_v(x1,n);
 
     // apply prolongation matrix to the coarse grid
-    x2 = multiply_mv(P, 2*n-1, n, x1);
+    x2 = prolong(x1, 2*n-1);
 
     // print x2 vector
     cout<<"x2:"<<endl;
     print_v(x2,2*n-1);
 
-    // allocate restriction matrix
-    double** R = allocate_mat(n, 2*n-1);
-    initialize_mat(R, n, 2*n-1);
-
-    //generate restriction matrix
-    for(int i=0; i<n; i++){
-        R[i][i*2]=1; // same value
-    }
-
-    // apply restriction matrix to the coarse grid
-    x3 = multiply_mv(R, n, 2*n-1, x2);
-
+    x3 = restrict(x2, 2*n-1);
     // print x2 vector
     cout<<"x3:"<<endl;
     print_v(x3,n);
