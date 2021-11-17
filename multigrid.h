@@ -85,6 +85,19 @@ double *prolong(double *ec, int n){
 }
 //Gauss Seidel Module
 template <class T>
+T* matMul(int n, T** M, T* v) {
+  int row, col;
+  T* result = new T[n];
+  for (row = 0; row < n; row++) {
+    result[row] = 0;
+    for (col = 0; col < n; col++) {
+      result[row] += M[row][col]*v[col];
+    }
+  }
+  return result;
+}
+
+template <class T>
 T* GS(int n,int iter, T** M, T* v) {
   T* x = new T[n];
   T sigma = 0;
