@@ -83,3 +83,32 @@ double *prolong(double *ec, int n){
     ef = multiply_mv(P, l1, l2, ec);
     return ef;
 }
+//Gauss Seidel Module
+template <class T>
+T* GS(int n,int iter, T** M, T* v) {
+  T* x = new T[n];
+  T sigma = 0;
+  for (int k = 0; k < iter; k ++) {
+    for (int i = 0; i < n; i ++) {
+      sigma = 0;
+      for (int j = 0; j < n; j ++) {
+        if (j != i) {
+          sigma += M[i][j]*x[j];
+        }
+      }
+      x[i] = (v[i]-sigma)/M[i][i];
+    }
+  }
+  return x;
+}
+//Get residual with vector x from GS procedure
+template <class T>
+T* getResidual(T** M,T* v, T* x, int n) {
+ T* vec = new T[n];
+ T* result = new T[n];
+ vec = matMul<T>(n,M,x);
+ for (int i = 0; i < n; i++){
+   result[i] = v[i]-vec[i];
+ }
+ return result
+}
