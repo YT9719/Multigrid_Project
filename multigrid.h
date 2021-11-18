@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <iomanip> // include the setprecision funtion
+#include <cmath> // include math functions
+#include <algorithm> // include max_element function
 using namespace std;
 
 // allocate a matrix 
@@ -41,12 +43,46 @@ double *multiply_mv(double **m, int row, int col, double *v){
     return b;
 }
 
+// vector subtraction
+// *v1 & *v2 are two vectors
+// n is the size of the vector
+double *subtract_vv(double *v1, double *v2, int n){
+  double *v3 = new double[n];
+  for(int i = 0; i < n; i++){
+    v3[i] = v1[i] - v2[i];
+  }
+  return v3;
+}
+
+// maximum norm of a vector
+// *v is a vector
+// n is the size of the vector
+double norm_max(double *v, int n){
+  for(int i = 0; i < n; i++){
+    v[i] = abs(v[i]);
+  }
+  double max = *std::max_element(v, v+n);
+  return max;
+}
+
 // print vector
 // *v is a vector
 // n is the size of the vector
-void print_v(double* v, int n){
+void print_v(double *v, int n){
     for(int i = 0; i < n; i++){
         cout<<fixed<<setprecision(5)<<v[i]<<endl;
+    }
+}
+
+// print matrix
+// **m is a vector
+// row and col are number of rows and columns
+void print_m(double **m, int row, int col){
+    for(int i = 0; i < row; i++){
+      for(int j = 0; j < col; j++ ){
+        cout<<fixed<<setprecision(3)<<m[i][j]<<"  ";
+      }
+      cout<<endl;
     }
 }
 
@@ -97,9 +133,14 @@ T* matMul(int n, T** M, T* v) {
   return result;
 }
 
+
+// Gauss–Seidel solver
+// n is the szie of vector
+// **M is the coefficient matrix
+// *v is the right hand side vector
+// *x is the initial guess of solution 
 template <class T>
-T* GS(int n,int iter, T** M, T* v) {
-  T* x = new T[n];
+T* GS(int n,int iter, T** M, T* v, T* x) {
   T sigma = 0;
   for (int k = 0; k < iter; k ++) {
     for (int i = 0; i < n; i ++) {
@@ -114,6 +155,7 @@ T* GS(int n,int iter, T** M, T* v) {
   }
   return x;
 }
+
 //Get residual with vector x from GS procedure
 template <class T>
 T* getResidual(T** M,T* v, T* x, int n) {
@@ -123,5 +165,5 @@ T* getResidual(T** M,T* v, T* x, int n) {
  for (int i = 0; i < n; i++){
    result[i] = v[i]-vec[i];
  }
- return result
+ return result;
 }
