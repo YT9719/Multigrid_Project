@@ -27,6 +27,14 @@ void initialize_mat(double **m, int row, int col)
     }
 }
 
+// initialize a vector to all zero
+// n is the size of the vector
+void initialize_mat(double *v, int n){
+  for(int i = 0; i < n; i++){
+        v[i] = 0;
+    }
+}
+
 // matrix and vector multiplication
 // **m is a matrix
 // row and col are number of rows and columns
@@ -54,14 +62,27 @@ double *subtract_vv(double *v1, double *v2, int n){
   return v3;
 }
 
+// vector addition
+// *v1 & *v2 are two vectors
+// n is the size of the vector
+double *add_vv(double *v1, double *v2, int n){
+  double *v3 = new double[n];
+  for(int i = 0; i < n; i++){
+    v3[i] = v1[i] + v2[i];
+  }
+  return v3;
+}
+
 // maximum norm of a vector
 // *v is a vector
 // n is the size of the vector
 double norm_max(double *v, int n){
+  double *v_new = new double[n]; 
   for(int i = 0; i < n; i++){
-    v[i] = abs(v[i]);
+    v_new[i] = abs(v[i]);
   }
-  double max = *std::max_element(v, v+n);
+  double max = *max_element(v_new, v_new+n);
+  delete[] v_new;
   return max;
 }
 
@@ -90,7 +111,7 @@ void print_m(double **m, int row, int col){
 // *rf is the residual on the fine grid
 // n is the szie of residual 
 // *rc is the residual on the coarse grid
-double *restrict(double *rf, int n){ //n is the
+double *restrict(double *rf, int n){
     int l1 = n; // fine grid
     int l2 = (n + 1) / 2; // coarse grid
     double *rc = new double[l2];
@@ -98,6 +119,7 @@ double *restrict(double *rf, int n){ //n is the
     initialize_mat(R, l2, l1);
     for(int i = 0; i < l2; i++){R[i][i*2] = 1;} // same value
     rc = multiply_mv(R, l2, l1, rf);
+    delete[] R;
     return rc;
 }
 
@@ -117,8 +139,10 @@ double *prolong(double *ec, int n){
         }
     }
     ef = multiply_mv(P, l1, l2, ec);
+    delete[] P;
     return ef;
 }
+
 //Gauss Seidel Module
 template <class T>
 T* matMul(int n, T** M, T* v) {
