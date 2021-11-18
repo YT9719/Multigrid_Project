@@ -122,6 +122,7 @@ double *prolong(double *ec, int n){
 //Gauss Seidel Module
 template <class T>
 T* matMul(int n, T** M, T* v) {
+  // n is the dimension of the linear system (matrix), M is the input matrix and v is the input vector
   int row, col;
   T* result = new T[n];
   for (row = 0; row < n; row++) {
@@ -159,6 +160,10 @@ T* GS(int n,int iter, T** M, T* v, T* x) {
 //Get residual with vector x from GS procedure
 template <class T>
 T* getResidual(T** M,T* v, T* x, int n) {
+ // n is the dimension
+ // M is the matrix
+ // the system is expressed as Ax = v; 
+ // input x here is the solution from the GS procedure
  T* vec = new T[n];
  T* result = new T[n];
  vec = matMul<T>(n,M,x);
