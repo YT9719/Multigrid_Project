@@ -20,8 +20,8 @@ double **allocate_mat(int row, int col){
 // row and col are number of rows and columns
 void initialize_mat(double **m, int row, int col)
 {
-    for(auto i = 0; i < row; i++) {
-        for(auto j = 0; j < col; j++) {
+    for(int i = 0; i < row; i++) {
+        for(int j = 0; j < col; j++) {
             m[i][j] = 0;
         }
     }
@@ -29,7 +29,7 @@ void initialize_mat(double **m, int row, int col)
 
 // initialize a vector to all zero
 // n is the size of the vector
-void initialize_mat(double *v, int n){
+void initialize_vec(double *v, int n){
   for(int i = 0; i < n; i++){
         v[i] = 0;
     }
