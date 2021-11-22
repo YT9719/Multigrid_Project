@@ -27,6 +27,25 @@ void initialize_mat(double **m, int row, int col)
     }
 }
 
+// generate coefficient matrix for three-point stencil
+// n is the size of the square matrix 
+double **three_stencil(int n){
+  double **m = allocate_mat(n, n);
+  initialize_mat(m, n, n);
+  for(int i = 0; i < n; i++){
+    if(i == 0){
+      m[i][i] = 1; m[i][i+1] = 0.5;
+    }
+    else if(i == n - 1){
+      m[i][i] = 1; m[i][i-1] = 0.5; 
+    }
+    else{
+      m[i][i] = 1; m[i][i+1] = 0.5; m[i][i-1] = 0.5;
+    }
+  }
+  return m;
+}
+
 // initialize a vector to all zero
 // n is the size of the vector
 void initialize_vec(double *v, int n){
@@ -108,6 +127,7 @@ void print_m(double **m, int row, int col){
 }
 
 // Restriction module 
+// Full-weighting restriction
 // *rf is the residual on the fine grid
 // n is the szie of residual 
 // *rc is the residual on the coarse grid
@@ -117,11 +137,28 @@ double *restrict(double *rf, int n){
     double *rc = new double[l2];
     double **R = allocate_mat(l2, l1);
     initialize_mat(R, l2, l1);
-    for(int i = 0; i < l2; i++){R[i][i*2] = 1;} // same value
+    //for(int i = 0; i < l2; i++){R[i][i*2] = 1;} // same value
+    for(int i = 0; i < l2; i++){
+      if(i == 0){
+        R[i][i*2] = 0.5;
+        R[i][i*2+1] = 0.25;
+      }
+      else if(i == l2 - 1){
+        R[i][2*i] = 0.5;
+        R[i][2*i-1] = 0.25;
+      }
+      else{
+        R[i][2*i-1] = 0.25;
+        R[i][2*i] = 0.5;
+        R[i][2*i+1] = 0.25;
+      }
+    }
     rc = multiply_mv(R, l2, l1, rf);
+    //cout<<"R:"<<endl;
+    //print_m(R, l2, l1);
     delete[] R;
     return rc;
-}
+    }
 
 // Prolongation module
 double *prolong(double *ec, int n){
@@ -139,6 +176,8 @@ double *prolong(double *ec, int n){
         }
     }
     ef = multiply_mv(P, l1, l2, ec);
+    //cout<<"P:"<<endl;
+    //print_m(P, l1, l2);
     delete[] P;
     return ef;
 }

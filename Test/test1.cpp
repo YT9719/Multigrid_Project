@@ -21,35 +21,9 @@ int main(){
     int l2 = (l1+1)/2; // coarse grid
     double epsilon = 1e-5; // convergence criteria
 
-    // define the coefficient matrix A1 for the fine grid
-    double **A1 = allocate_mat(l1, l1);
-    initialize_mat(A1, l1, l1);
-    for(int i = 0; i < l1; i++){
-        if(i == 0){
-            A1[i][i] = 1; A1[i][i+1] = 0.5;
-        }
-        else if(i == l1 - 1){
-            A1[i][i] = 1; A1[i][i-1] = 0.5; 
-        }
-        else{
-            A1[i][i] = 1; A1[i][i+1] = 0.5; A1[i][i-1] = 0.5;
-        }
-    }
-
-     // define the coefficient matrix A1 for the coarse grid
-    double **A2 = allocate_mat(l2, l2);
-    initialize_mat(A2, l2, l2);
-    for(int i = 0; i < l2; i++){
-        if(i == 0){
-            A2[i][i] = 1; A2[i][i+1] = 0.5;
-        }
-        else if(i == l2 - 1){
-            A2[i][i] = 1; A2[i][i-1] = 0.5; 
-        }
-        else{
-            A2[i][i] = 1; A2[i][i+1] = 0.5; A2[i][i-1] = 0.5;
-        }
-    }
+    // define the coefficient matrices
+    double **A1 = three_stencil(l1); // fine grid
+    double **A2 = three_stencil(l2); // coarse grid
 
     // define the right hand side vector f1 for the fine grid
     double *f1 = new double[l1];
@@ -58,7 +32,7 @@ int main(){
     // define the initial guess v1 for the fine grid
     double *v1 = new double[l1];
     for(int i = 0; i < l1; i++){
-        v1[i] = 0.5*(sin(3*M_PI*i/(l1-1))+sin(10*M_PI*i/(l1+1)));
+        v1[i] = 0.5*(sin(3*M_PI*i/(l1-1))+sin(10*M_PI*i/(l1-1)));
     }
 
     // allocate residual
@@ -90,10 +64,20 @@ int main(){
         // compute the residual r1 for the coarse grid
         r2 = restrict(r1, l1);
 
-        cout<<"good";
         // second relaxation/smoothing
         initialize_vec(e2, l2);
+
+        // solve the error equation Ae=r using GS solver 
+        // or relaxation handreds of times
         e2 = GS(l2, 1, A2, r2, e2);
+        double *temp = getResidual(A2, r2, e2, l2);
+        double error = norm_max(temp, l2);
+        double conv = 1e-7;
+        while (error > conv){
+            e2 = GS(l2, 1, A2, r2, e2);
+            temp = getResidual(A2, r2, e2, l2);
+            error = norm_max(temp, l2);
+        }   
 
         // prolongation
         e1 = prolong(e2, l2);
@@ -114,8 +98,8 @@ int main(){
     }
     
     // print the final solution
-    cout<<"Approximated solution:"<<endl;
-    print_v(v1, l1);
+    //cout<<"Approximated solution:"<<endl;
+    //print_v(v1, l1);
 
     return 1;
 }
