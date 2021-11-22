@@ -19,6 +19,7 @@ int main(){
     int n = 64;
     int l1 = n+1; // fine grid
     int l2 = (l1+1)/2; // coarse grid
+    double epsilon = 1e-5; // convergence criteria
 
     // define the coefficient matrix A1 for the fine grid
     double **A1 = allocate_mat(l1, l1);
@@ -49,60 +50,69 @@ int main(){
     double *r1 = new double[l1];
     r1 = getResidual(A1, f1, v1, l1);
     
-    //print maximum norm of the residual
+    // print maximum norm of the residual
+    double r_max = norm_max(r1, l1);
     cout<<"Maximum norm of residual: ";
-    cout<<norm_max(r1, l1)<<endl;
+    cout<<r_max<<endl;
 
-    // first relaxation/smoothing
-    v1 = GS(l1, 1, A1, f1, v1);
-    r1 = getResidual(A1, f1, v1, l1);
+    int num_iter = 1; // number of V-cycle iterations
 
-    //print maximum norm of the residual
-    cout<<"Maximum norm of residual: ";
-    cout<<norm_max(r1, l1)<<endl;
+    while(r_max > epsilon){
 
-    // restriction
-    // compute the residual r1 for the coarse grid
-    double *r2 = new double[l2];
-    r2 = restrict(r1, l1);
+        // first relaxation/smoothing
+        v1 = GS(l1, 1, A1, f1, v1);
+        r1 = getResidual(A1, f1, v1, l1);
 
-    // define the coefficient matrix A1 for the coarse grid
-    double **A2 = allocate_mat(l2, l2);
-    initialize_mat(A2, l2, l2);
-    for(int i = 0; i < l2; i++){
-        if(i == 0){
-            A2[i][i] = 1; A2[i][i+1] = 0.5;
+        // restriction
+        // compute the residual r1 for the coarse grid
+        double *r2 = new double[l2];
+        r2 = restrict(r1, l1);
+
+        // define the coefficient matrix A1 for the coarse grid
+        double **A2 = allocate_mat(l2, l2);
+        initialize_mat(A2, l2, l2);
+        for(int i = 0; i < l2; i++){
+            if(i == 0){
+                A2[i][i] = 1; A2[i][i+1] = 0.5;
+            }
+            else if(i == l1 - 1){
+                A2[i][i] = 1; A2[i][i-1] = 0.5; 
+            }
+            else{
+                A2[i][i] = 1; A2[i][i+1] = 0.5; A2[i][i-1] = 0.5;
+            }
         }
-        else if(i == l1 - 1){
-            A2[i][i] = 1; A2[i][i-1] = 0.5; 
-        }
-        else{
-            A2[i][i] = 1; A2[i][i+1] = 0.5; A2[i][i-1] = 0.5;
-        }
+
+        // define the error e2 on the coarse grid
+        double *e2 = new double[l2];
+        initialize_mat(e2, l2);
+
+        // second relaxation/smoothing
+        e2 = GS(l2, 1, A2, r2, e2);
+
+        // prolongation
+        // compute the error e1 for the fine grid
+        double *e1 = new double[l1];
+        e1 = prolong(e2, l2);
+
+        // correct the solution v1 for the fine grid
+        v1 = add_vv(v1, e1, l1);
+
+        // third relaxation/smoothing
+        v1 = GS(l1, 1, A1, f1, v1);
+        r1 = getResidual(A1, f1, v1, l1);
+
+        // print maximum norm of the residual
+        r_max = norm_max(r1, l1);
+        cout<< "Number of V-cycles: "<< num_iter<<";   ";
+        cout<< "Maximum norm of residual: ";
+        cout<< r_max <<endl;
+        num_iter = num_iter + 1;
     }
-
-    // define the error e2 on the coarse grid
-    double *e2 = new double[l2];
-    initialize_mat(e2, l2);
-
-    // second relaxation/smoothing
-    e2 = GS(l2, 1, A2, r2, e2);
-
-    // prolongation
-    // compute the error e1 for the fine grid
-    double *e1 = new double[l1];
-    e1 = prolong(e2, l2);
-
-    // correct the solution v1 for the fine grid
-    v1 = add_vv(v1, e1, l1);
-
-    // third relaxation/smoothing
-    v1 = GS(l1, 1, A1, f1, v1);
-    r1 = getResidual(A1, f1, v1, l1);
-
-    //print maximum norm of the residual
-    cout<<"Maximum norm of residual: ";
-    cout<<norm_max(r1, l1)<<endl;
+    
+    // print the final solution
+    cout<<"Approximated solution:"<<endl;
+    print_v(v1, l1);
 
     return 1;
 }
