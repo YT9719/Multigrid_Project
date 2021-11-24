@@ -56,6 +56,7 @@ int main(){
     int num_iter = 1; // number of V-cycle iterations
 
     while(r_max > epsilon){
+    //for(int i = 0; i < 2; i++){
         // first relaxation/smoothing
         v1 = GS(l1, 1, A1, f1, v1);
         r1 = getResidual(A1, f1, v1, l1);
@@ -77,7 +78,10 @@ int main(){
             e2 = GS(l2, 1, A2, r2, e2);
             temp = getResidual(A2, r2, e2, l2);
             error = norm_max(temp, l2);
-        }   
+        }
+
+        //cout<<"f1:"<<endl;
+        //print_v(f1, l1);
 
         // prolongation
         e1 = prolong(e2, l2);

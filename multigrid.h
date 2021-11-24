@@ -34,13 +34,13 @@ double **three_stencil(int n){
   initialize_mat(m, n, n);
   for(int i = 0; i < n; i++){
     if(i == 0){
-      m[i][i] = 1; m[i][i+1] = 0.5;
+      m[i][i] = 1; m[i][i+1] = -0.5;
     }
     else if(i == n - 1){
-      m[i][i] = 1; m[i][i-1] = 0.5; 
+      m[i][i] = 1; m[i][i-1] = -0.5; 
     }
     else{
-      m[i][i] = 1; m[i][i+1] = 0.5; m[i][i-1] = 0.5;
+      m[i][i] = 1; m[i][i+1] = -0.5; m[i][i-1] = -0.5;
     }
   }
   return m;
