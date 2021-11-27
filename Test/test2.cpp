@@ -22,19 +22,7 @@ int main(){
     double epsilon = 1e-5; // convergence criteria
 
     // define the coefficient matrix A1 for the fine grid
-    double **A1 = allocate_mat(l1, l1);
-    initialize_mat(A1, l1, l1);
-    for(int i = 0; i < l1; i++){
-        if(i == 0){
-            A1[i][i] = 1; A1[i][i+1] = 0.5;
-        }
-        else if(i == l1 - 1){
-            A1[i][i] = 1; A1[i][i-1] = 0.5; 
-        }
-        else{
-            A1[i][i] = 1; A1[i][i+1] = 0.5; A1[i][i-1] = 0.5;
-        }
-    }
+    double **A1 = three_stencil(l1);
 
     // define the right hand side vector f1 for the fine grid
     double *f1 = new double[l1];
@@ -43,7 +31,7 @@ int main(){
     // define the initial guess v1 for the fine grid
     double *v1 = new double[l1];
     for(int i = 0; i < l1; i++){
-        v1[i] = 0.5*(sin(3*M_PI*i/(l1-1))+sin(10*M_PI*i/(l1+1)));
+        v1[i] = 0.5*(sin(3*M_PI*i/(l1-1))+sin(10*M_PI*i/(l1-1)));
     }
 
     // compute the residual r1 for the fine grid
@@ -57,6 +45,7 @@ int main(){
 
     int num_iter = 1; // number of V-cycle iterations
 
+    //while(r_max > epsilon){
     while(r_max > epsilon){
 
         // first relaxation/smoothing
