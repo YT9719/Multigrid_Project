@@ -64,8 +64,6 @@ double *V_cycle(double **A, double *v, double *f, int num, int level){
     }
 
     // prolongation 
-    //cout<<"e:"<<endl;
-    //print_v(e, num_c);
     double *ef = prolong(e, num_c);
 
     // correct the approximated solution
@@ -73,9 +71,6 @@ double *V_cycle(double **A, double *v, double *f, int num, int level){
 
     // post-relaxation
     v = GS(num, post, A, f, v);
-
-    // compute the residual for the fine grid
-    //r = getResidual(A, f, v, num);
 
     return v;
 }
@@ -113,14 +108,9 @@ int main(){
         cout<<r_max<<endl;
     }
 
-    //cout<<"v:"<<endl;
-    //print_v(v, num);
+    cout<<"Approximated solution:"<<endl;
+    print_v(v, num);
 
     return 1; 
 }
-
-
-
-
-
 
