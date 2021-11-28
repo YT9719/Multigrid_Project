@@ -62,6 +62,7 @@ int main(){
     double *r2_new = new double[l2];
 
     while(r_max > epsilon){
+    //for(int i = 0; i < 2; i++){
         // pre-relaxation/smoothing
         v1 = GS(l1, 1, A1, f1, v1);
         r1 = getResidual(A1, f1, v1, l1);
@@ -125,8 +126,8 @@ int main(){
     }
     
     // print the final solution
-    //cout<<"Approximated solution:"<<endl;
-    //print_v(v1, l1);
+    cout<<"Approximated solution:"<<endl;
+    print_v(v1, l1);
 
     return 1;
 }
