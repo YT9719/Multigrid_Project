@@ -46,6 +46,24 @@ double **three_stencil(int n){
   return m;
 }
 
+// generate coefficient matrix for five-point stencil
+// row and col are number of rows and columns of the grid
+double **five_stencil(int row, int col){
+  int i, j, d;
+  d = row * col;
+  double **m = allocate_mat(d, d);
+  initialize_mat(m, d, d);
+  for(int k = 0; k < d; k++){
+      i = k/row; j = k-i*row;
+      if(i>0)     {m[k][k-row] = -0.25;}
+      if(i<col-1) {m[k][k+row] = -0.25;}
+      if(j>0)     {m[k][k-1] = -0.25;}
+      if(j<row-1) {m[k][k+1] = -0.25;}
+      m[k][k] = 1.0;
+    }
+  return m;
+}
+
 // initialize a vector to all zero
 // n is the size of the vector
 void initialize_vec(double *v, int n){
