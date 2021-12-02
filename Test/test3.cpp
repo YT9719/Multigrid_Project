@@ -93,8 +93,11 @@ int main(){
     for(int i = 0; i < num; i++){
         v[i] = 0.5*(sin(3*M_PI*i/(num-1))+sin(10*M_PI*i/(num-1)));
     }
+    // initialize the max norm of residual
+    double r_max = 1;
 
-    for(int i = 0; i < 50; i++){
+    //for(int i = 0; i < 50; i++){
+    while(r_max > epsilon){
 
         // multigrid V-cycle
         v = V_cycle(A, v, f, num, level);
@@ -103,7 +106,7 @@ int main(){
         r = getResidual(A, f, v, num);
 
         // print maximum norm of the residual
-        double r_max = norm_max(r, num);
+        r_max = norm_max(r, num);
         cout<<"Maximum norm of residual: ";
         cout<<r_max<<endl;
     }
