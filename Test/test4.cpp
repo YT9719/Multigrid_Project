@@ -1,7 +1,7 @@
 /*
 Recursive function
 2D homogeneous problem Au = 0
-Finest grid n = 64 intervals (65 points/nodes)
+Finest grid row & col = 64 intervals (65^2 points/nodes)
 Three level grid 
 The initial guess is two sine waves (low frequency error + high frequency error)
 v_0(x) = 0.5*(sin(3*M_PI*x/n)+sin(10*M_PI*x/n))
@@ -15,15 +15,72 @@ v_0(x) = 0.5*(sin(3*M_PI*x/n)+sin(10*M_PI*x/n))
 
 using namespace std;
 
+// -----------------input data---------------------//
+int n = 64; // number of intervals
+int row = n + 1; // number of rows
+int col = n + 1; // number of columns
+int num = row * col; // number of nodes
+double epsilon = 1e-5; // convergence criteria
+int num_level = 3; // number of grids
+int pre  = 1; // number of pre-relaxation
+int post = 1; // number of post-relaxation
+// ------------------------------------------------//
+
+double *V_cycle(double **A, double *v, double *f, int row, int col, int level){
+    // calculate the total number of nodes
+    int num = row * col;
+
+    // pre-relaxation
+    A = five_stencil(row, col);
+    v = GS(num, pre, A, f, v);
+
+    // compute the residual for the fine grid
+    double *r = getResidual(A, f, v, num);
+
+    // restriction 
+    double *rc = restrict_2D(r, row, col);
+    level = level + 1;
+    int row_c = (row + 1) / 2;
+    int col_c = (col + 1) / 2;
+    int num_c = row_c * col_c;
+
+    // inititalize the error vector
+    double *e = new double[num_c];
+    initialize_vec(e, num_c);
+
+    // inititalize the coefficient matrix
+    double **A_c = five_stencil(row_c, col_c);
+
+    // stop recursion at coarsest grid, otherwise continue recursion
+    if(level == num_level){
+        //solve the error equation
+        e = GS(num_c, 1, A_c, rc, e);
+        double *temp = getResidual(A_c, rc, e, num_c);
+        double error = norm_max(temp, num_c);
+        double conv = 1e-7;
+        while (error > conv){
+            e = GS(num_c, 1, A_c, rc, e);
+            temp = getResidual(A_c, rc, e, num_c);
+            error = norm_max(temp, num_c);
+        }
+    } else{
+        e = V_cycle(A_c, e, rc, row_c, col_c, level);
+    }
+
+    // prolongation 
+    double *ef = prolong_2D(e, row_c, col_c);
+
+    // correct the approximated solution
+    v = add_vv(v, ef, num);
+
+    // post-relaxation
+    v = GS(num, post, A, f, v);
+
+    return v;
+}
+
 int main(){
-    int l = 4; // 
-    int row = l + 1; // number of rows
-    int col = l + 1; // number of columns
-    int num = row * col; // number of nodes
-    double epsilon = 1e-5; // convergence criteria
-    int num_level = 3; // number of grids
-    int pre  = 1; // number of pre-relaxation
-    int post = 1; // number of post-relaxation
+    int level = 1;
 
     // --------------allocate meomories----------------//
     double **A; // the coefficient matrix for the fine grid
@@ -39,166 +96,25 @@ int main(){
     for(int i = 0; i < num; i++){
         v[i] = 0.5*(sin(3*M_PI*i/(num-1))+sin(10*M_PI*i/(num-1)));
     }
+    // initialize the max norm of residual
+    double r_max = 1;
 
-    v = GS(num, 10, A, f, v);
+    while(r_max > epsilon){
 
-    int row_c, col_c, num_c;
-    row_c = (row + 1) / 2;
-    col_c = (col + 1) / 2;
-    num_c = row_c * col_c;
+        // multigrid V-cycle
+        v = V_cycle(A, v, f, row, col, level);
 
-    // restriction matrix
-    double **R = allocate_mat(num_c, num);
-    initialize_mat(R, num_c, num);
-    int m, n;
-    for(int i = 0; i < row_c; i++){
-        for(int j = 0; j < col_c; j++){
-            m = i * col_c + j;
-            n = i * 2 * col + j * 2;
-            if(i == 0){
-                if (j == 0){
-                    R[m][n]       = 1.0/4;
-                    R[m][n+1]     = 1.0/8;
-                    R[m][n+col]   = 1.0/8;
-                    R[m][n+col+1] = 1.0/16;
-                } else if(j == col_c - 1){
-                    R[m][n-1]     = 1.0/8;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+col-1] = 1.0/16;
-                    R[m][n+col]   = 1.0/8;
-                }else{
-                    R[m][n-1]     = 1.0/8;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+1]     = 1.0/8;
-                    R[m][n+col-1] = 1.0/16;
-                    R[m][n+col]   = 1.0/8;
-                    R[m][n+col+1] = 1.0/16;
-                }
-            } else if (i == row_c - 1){
-                if (j == 0){
-                    R[m][n-col]   = 1.0/8;
-                    R[m][n-col+1] = 1.0/16;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+1]     = 1.0/8;
-                } else if(j == col_c - 1){
-                    R[m][n-col-1] = 1.0/16;
-                    R[m][n-col]   = 1.0/8;
-                    R[m][n-1]     = 1.0/8;
-                    R[m][n]       = 1.0/4;
-                }else{
-                    R[m][n-col-1] = 1.0/16;
-                    R[m][n-col]   = 1.0/8;
-                    R[m][n-col+1] = 1.0/16;
-                    R[m][n-1]     = 1.0/8;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+1]     = 1.0/8;
-                }
-            }else{
-                if (j == 0){
-                    R[m][n-col]   = 1.0/8;
-                    R[m][n-col+1] = 1.0/16;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+1]     = 1.0/8;
-                    R[m][n+col]   = 1.0/8;
-                    R[m][n+col+1] = 1.0/16;
-                } else if(j == col_c - 1){
-                    R[m][n-col-1] = 1.0/16;
-                    R[m][n-col]   = 1.0/8;
-                    R[m][n-1]     = 1.0/8;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+col-1] = 1.0/16;
-                    R[m][n+col]   = 1.0/8;
-                }else{
-                    R[m][n-col-1] = 1.0/16;
-                    R[m][n-col]   = 1.0/8;
-                    R[m][n-col+1] = 1.0/16;
-                    R[m][n-1]     = 1.0/8;
-                    R[m][n]       = 1.0/4;
-                    R[m][n+1]     = 1.0/8;
-                    R[m][n+col-1] = 1.0/16;
-                    R[m][n+col]   = 1.0/8;
-                    R[m][n+col+1] = 1.0/16;
-                }
-            }
-        }
+        // compute the residual for the fine grid
+        r = getResidual(A, f, v, num);
+
+        // print maximum norm of the residual
+        r_max = norm_max(r, num);
+        cout<<"Maximum norm of residual: ";
+        cout<<r_max<<endl;
     }
 
-    // prolongation matrix
-    double **P = allocate_mat(num, num_c);
-    initialize_mat(P, num, num_c);
-    //int m, n;
-    for(int i = 0; i < row_c; i++){
-        for(int j = 0; j < col_c; j++){
-            m = i * col_c + j;
-            n = i * 2 * col + j * 2;
-            if(i == 0){
-                if (j == 0){
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                } else if(j == col_c - 1){
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                }else{
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                }
-            } else if (i == row_c - 1){
-                if (j == 0){
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                } else if(j == col_c - 1){
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                }else{
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                }
-            }else{
-                if (j == 0){
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                } else if(j == col_c - 1){
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                }else{
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                }
-            }
-        }
-    }
+    cout<<"Approximated solution:"<<endl;
+    print_v(v, num);
 
-    print_m(P, num, num_c);
-
+    return 1; 
 }
