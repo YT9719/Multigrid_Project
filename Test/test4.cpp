@@ -98,6 +98,11 @@ int main(){
     }
     // initialize the max norm of residual
     double r_max = 1;
+    // initialize the number of iterstions
+    int iter = 1;
+
+    // print the titles
+    cout<<setw(10)<<"Iterations"<<"   "<<"Residual"<<endl;
 
     while(r_max > epsilon){
 
@@ -107,10 +112,12 @@ int main(){
         // compute the residual for the fine grid
         r = getResidual(A, f, v, num);
 
-        // print maximum norm of the residual
+        // compute maximum norm of the residual
         r_max = norm_max(r, num);
-        cout<<"Maximum norm of residual: ";
-        cout<<r_max<<endl;
+
+        // print the number of itertions and max norm of the residual
+        cout<<setw(10)<<iter<<" "<<setprecision(3)<<r_max<<endl;
+        iter = iter + 1;
     }
 
     cout<<"Approximated solution:"<<endl;
