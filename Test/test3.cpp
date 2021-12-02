@@ -96,7 +96,6 @@ int main(){
     // initialize the max norm of residual
     double r_max = 1;
 
-    //for(int i = 0; i < 50; i++){
     while(r_max > epsilon){
 
         // multigrid V-cycle
