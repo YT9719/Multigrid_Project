@@ -144,7 +144,7 @@ void print_m(double **m, int row, int col){
     }
 }
 
-// Restriction module 
+// Restriction module（1D）
 // Full-weighting restriction
 // *rf is the residual on the fine grid
 // n is the szie of residual 
@@ -172,11 +172,101 @@ double *restrict(double *rf, int n){
       }
     }
     rc = multiply_mv(R, l2, l1, rf);
-    //cout<<"R:"<<endl;
-    //print_m(R, l2, l1);
     delete[] R;
     return rc;
     }
+
+// Restriction module（2D）
+// Full-weighting restriction
+// *rf is the residual on the fine grid
+// row and col are number of rows and columns of fine grid
+// *rc is the residual on the coarse grid
+double *restrict_2D(double *rf, int row, int col){
+  int num, row_c, col_c, num_c;
+  num = row * col; // number of nodes of fine grid 
+  row_c = (row + 1) / 2; // number of rows of coarse grid
+  col_c = (col + 1) / 2; // number of columns of coarse grid
+  num_c = row_c * col_c; // number of nodes of coarse grid
+  double *rc = new double[num_c];
+  double **R = allocate_mat(num_c, num);
+  initialize_mat(R, num_c, num);
+  int m, n;
+  for(int i = 0; i < row_c; i++){
+      for(int j = 0; j < col_c; j++){
+          m = i * col_c + j;
+          n = i * 2 * col + j * 2;
+          if(i == 0){
+              if (j == 0){
+                  R[m][n]       = 1.0/4;
+                  R[m][n+1]     = 1.0/8;
+                  R[m][n+col]   = 1.0/8;
+                  R[m][n+col+1] = 1.0/16;
+              } else if(j == col_c - 1){
+                  R[m][n-1]     = 1.0/8;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+col-1] = 1.0/16;
+                  R[m][n+col]   = 1.0/8;
+              }else{
+                  R[m][n-1]     = 1.0/8;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+1]     = 1.0/8;
+                  R[m][n+col-1] = 1.0/16;
+                  R[m][n+col]   = 1.0/8;
+                  R[m][n+col+1] = 1.0/16;
+              }
+          } else if (i == row_c - 1){
+              if (j == 0){
+                  R[m][n-col]   = 1.0/8;
+                  R[m][n-col+1] = 1.0/16;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+1]     = 1.0/8;
+              } else if(j == col_c - 1){
+                  R[m][n-col-1] = 1.0/16;
+                  R[m][n-col]   = 1.0/8;
+                  R[m][n-1]     = 1.0/8;
+                  R[m][n]       = 1.0/4;
+              }else{
+                  R[m][n-col-1] = 1.0/16;
+                  R[m][n-col]   = 1.0/8;
+                  R[m][n-col+1] = 1.0/16;
+                  R[m][n-1]     = 1.0/8;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+1]     = 1.0/8;
+              }
+          }else{
+              if (j == 0){
+                  R[m][n-col]   = 1.0/8;
+                  R[m][n-col+1] = 1.0/16;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+1]     = 1.0/8;
+                  R[m][n+col]   = 1.0/8;
+                  R[m][n+col+1] = 1.0/16;
+              } else if(j == col_c - 1){
+                  R[m][n-col-1] = 1.0/16;
+                  R[m][n-col]   = 1.0/8;
+                  R[m][n-1]     = 1.0/8;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+col-1] = 1.0/16;
+                  R[m][n+col]   = 1.0/8;
+              }else{
+                  R[m][n-col-1] = 1.0/16;
+                  R[m][n-col]   = 1.0/8;
+                  R[m][n-col+1] = 1.0/16;
+                  R[m][n-1]     = 1.0/8;
+                  R[m][n]       = 1.0/4;
+                  R[m][n+1]     = 1.0/8;
+                  R[m][n+col-1] = 1.0/16;
+                  R[m][n+col]   = 1.0/8;
+                  R[m][n+col+1] = 1.0/16;
+              }
+          }
+      }
+  }
+    rc = multiply_mv(R, num_c, num, rf);
+    delete[] R;
+    return rc;
+}
+
 
 // Prolongation module
 double *prolong(double *ec, int n){
@@ -194,11 +284,104 @@ double *prolong(double *ec, int n){
         }
     }
     ef = multiply_mv(P, l1, l2, ec);
-    //cout<<"P:"<<endl;
-    //print_m(P, l1, l2);
     delete[] P;
     return ef;
 }
+
+
+// Prolongation module（2D）
+// Full-weighting prolongation
+// *ec is the error on the coarse grid
+// row_c and col_c are number of rows and columns of coarse grid
+// *ef is the error on the fine grid
+double *prolong_2D(double *ec, int row_c, int col_c){
+    int num_c, num, row, col;
+    num_c = row_c * col_c; // number of nodes of coarse grid
+    row = row_c * 2 - 1; // number of rows of fine grid
+    col = col_c * 2 - 1; // number of columns of fine grid
+    num = row * col; // number of nodes of fine grid 
+    double *ef = new double [num];
+    double **P = allocate_mat(num, num_c);
+    initialize_mat(P, num, num_c);
+    int m, n;
+    for(int i = 0; i < row_c; i++){
+        for(int j = 0; j < col_c; j++){
+            m = i * col_c + j;
+            n = i * 2 * col + j * 2;
+            if(i == 0){
+                if (j == 0){
+                    P[n][m]       = 1.0/1;
+                    P[n+1][m]     = 1.0/2;
+                    P[n+col][m]   = 1.0/2;
+                    P[n+col+1][m] = 1.0/4;
+                } else if(j == col_c - 1){
+                    P[n-1][m]     = 1.0/2;
+                    P[n][m]       = 1.0/1;
+                    P[n+col-1][m] = 1.0/4;
+                    P[n+col][m]   = 1.0/2;
+                }else{
+                    P[n-1][m]     = 1.0/2;
+                    P[n][m]       = 1.0/1;
+                    P[n+1][m]     = 1.0/2;
+                    P[n+col-1][m] = 1.0/4;
+                    P[n+col][m]   = 1.0/2;
+                    P[n+col+1][m] = 1.0/4;
+                }
+            } else if (i == row_c - 1){
+                if (j == 0){
+                    P[n-col][m]   = 1.0/2;
+                    P[n-col+1][m] = 1.0/4;
+                    P[n][m]       = 1.0/1;
+                    P[n+1][m]     = 1.0/2;
+                } else if(j == col_c - 1){
+                    P[n-col-1][m] = 1.0/4;
+                    P[n-col][m]   = 1.0/2;
+                    P[n-1][m]     = 1.0/2;
+                    P[n][m]       = 1.0/1;
+                }else{
+                    P[n-col-1][m] = 1.0/4;
+                    P[n-col][m]   = 1.0/2;
+                    P[n-col+1][m] = 1.0/4;
+                    P[n-1][m]     = 1.0/2;
+                    P[n][m]       = 1.0/1;
+                    P[n+1][m]     = 1.0/2;
+                }
+            }else{
+                if (j == 0){
+                    P[n-col][m]   = 1.0/2;
+                    P[n-col+1][m] = 1.0/4;
+                    P[n][m]       = 1.0/1;
+                    P[n+1][m]     = 1.0/2;
+                    P[n+col][m]   = 1.0/2;
+                    P[n+col+1][m] = 1.0/4;
+                } else if(j == col_c - 1){
+                    P[n-col-1][m] = 1.0/4;
+                    P[n-col][m]   = 1.0/2;
+                    P[n-1][m]     = 1.0/2;
+                    P[n][m]       = 1.0/1;
+                    P[n+col-1][m] = 1.0/4;
+                    P[n+col][m]   = 1.0/2;
+                }else{
+                    P[n-col-1][m] = 1.0/4;
+                    P[n-col][m]   = 1.0/2;
+                    P[n-col+1][m] = 1.0/4;
+                    P[n-1][m]     = 1.0/2;
+                    P[n][m]       = 1.0/1;
+                    P[n+1][m]     = 1.0/2;
+                    P[n+col-1][m] = 1.0/4;
+                    P[n+col][m]   = 1.0/2;
+                    P[n+col+1][m] = 1.0/4;
+                }
+            }
+        }
+    }
+    ef = multiply_mv(P, num, num_c, ec);
+    delete[] P;
+    return ef;
+
+}
+
+
 
 //Gauss Seidel Module
 template <class T>
