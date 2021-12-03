@@ -7,7 +7,9 @@
 
 using namespace std;
 
-#define MAX_THREADS 4
+
+
+// #define MAX_THREADS 1
 
 double *multiply(double **m, int row, int col, double *v){
     double *b = new double [row];
@@ -28,8 +30,11 @@ double *multiply(double **m, int row, int col, double *v){
 }
 
 int main(){
+    int n_thread = 4;
+    omp_set_num_threads(n_thread);
 
-    int n = 10000;
+
+    int n = 20000;
     int num = n + 1;
     double **A = three_stencil(num);
     double *x  = new double[num];
@@ -37,12 +42,15 @@ int main(){
     double *f  = new double[num];
     
     double start_time = omp_get_wtime();
-
     f =  multiply(A, num, num, x);
-
     double run_time = omp_get_wtime() - start_time;
-
     cout<<run_time<<endl;
+
+    start_time = omp_get_wtime();
+    f = multiply_mv(A, num, num, x);
+    run_time = omp_get_wtime() - start_time;
+    cout<<run_time<<endl;
+
     //cout<<"f:"<<endl;
     //print_v(f, num);
 
