@@ -198,6 +198,7 @@ double *getResidual(double **M, double *v, double *x, int n){
     return result;
 }
 
+// V_cycle multigrid method for 1D problem
 // A is the coefficient matrix
 // v is the approximated solution
 // f is the right hand side vector
