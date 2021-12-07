@@ -198,6 +198,13 @@ double *getResidual(double **M, double *v, double *x, int n){
     return result;
 }
 
+// A is the coefficient matrix
+// v is the approximated solution
+// f is the right hand side vector
+// num is the number of nodes
+// level is the current level of grid (from 1)
+// pre and post are number of pre- and post-relaxation 
+// num_level is the total number of grids 
 double *V_cycle(double **A, double *v, double *f, \
 int num, int level, int pre, int post, int num_level){
     
