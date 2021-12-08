@@ -12,6 +12,8 @@ v_0(x) = 0.5*(sin(3*M_PI*x/n)+sin(10*M_PI*x/n))
 #include <iomanip> // include the setprecision funtion
 #include <cmath> // include math functions
 #include "../Src/multigrid_1D.h" // include all modules and functions
+#include <chrono>
+using namespace std::chrono;
 
 using namespace std;
 
@@ -19,12 +21,13 @@ using namespace std;
 int n = 64; // number of intervals
 int num = n + 1; // number of nodes
 double epsilon = 1e-7; // convergence criteria
-int num_level = 2; // number of grids
+int num_level = 3; // number of grids
 int pre  = 1; // number of pre-relaxation
 int post = 1; // number of post-relaxation
 // ------------------------------------------------//
 
 int main(){
+    auto start = high_resolution_clock::now();  
     int level = 1;
 
     // --------------allocate meomories----------------//
@@ -52,7 +55,7 @@ int main(){
     while(r_max > epsilon){
 
         // multigrid V-cycle
-        v = V_cycle(A, v, f, num, level, pre, post, num_level);
+        v = F_cycle(A, v, f, num, level, pre, post, num_level);
 
         // compute the residual for the fine grid
         r = getResidual(A, f, v, num);
@@ -69,6 +72,13 @@ int main(){
     for(int i = 0; i < num; i++){
         cout<<fixed<<setprecision(5)<<v[i]<<endl;
     }
+
+    auto stop = high_resolution_clock::now();
+
+    auto duration = duration_cast<microseconds>(stop - start);
+  
+    cout << "Time taken by function: "
+         << duration.count() << " microseconds" << endl;
 
     return 1; 
 }
