@@ -256,4 +256,44 @@ int num, int level, int pre, int post, int num_level){
     return v;
 }
 
+//added F-cycle multigrid code
 
+double *F_cycle(double **A, double *v, double *f, \
+int num, int level, int pre, int post, int num_level) {
+  A = three_stencil(num);
+  // pre-smoothing
+  v = GS(num,pre,A,f,v);
+  double *r = getResidual(A,f,v,num);
+
+  double *rc = restrict(r, num);
+  level = level + 1;
+  int num_c = (num+1)/2;
+  double *e = new double[num_c]; // initialize error vector
+  initialize_vec(e,num_c);
+  double **A_c = three_stencil(num_c);
+  if (level == num_level) {
+    e = GS(num_c, 1, A_c, rc, e);
+  }
+  else {
+    e = F_cycle(A_c,e,rc,num_c,level,pre,post,num_level);
+  }
+  double* ef = prolong(e,num_c);
+  v = add_vv(v,ef,num);
+  //re-smoothing
+  v = GS(num,post,A,f,v);
+  r = getResidual(A_c,rc,e,num_c);
+  //restriction
+  rc = restrict(r,num_c);
+  //rc = restrict(r,num);
+  if (level == num_level) {
+    e = GS(num_c, 1, A_c, rc, e);
+  else {
+    e = F_cycle(A_c,e,rc,num_c,level,pre,post,num_level);
+  }
+  double* ef = prolong(e,num_c);
+  v = add_vv(v,ef,num);
+   // post relaxation
+  v = GS(num,post,A,f,v);
+
+  }
+}
