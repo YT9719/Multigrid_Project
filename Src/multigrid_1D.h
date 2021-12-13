@@ -15,6 +15,14 @@ double **allocate_mat(int row, int col){
     return m;
 }
 
+// deallocate memory 
+void deallocate_mat(double **A, int row, int col){
+  for(int i = 0; i < row; i++){
+    delete[] A[i];
+  }
+  delete[] A;
+}
+
 // initialize a matrix to all zero
 // row and col are number of rows and columns
 void initialize_mat(double **m, int row, int col)
@@ -28,18 +36,18 @@ void initialize_mat(double **m, int row, int col)
 
 // generate coefficient matrix for three-point stencil
 // n is the size of the square matrix 
-double **three_stencil(int n){
+double **three_stencil(int n, double dx){
   double **m = allocate_mat(n, n);
   initialize_mat(m, n, n);
   for(int i = 0; i < n; i++){
         if(i == 0){
-            m[i][i] = 1; m[i][i+1] = -0.5;
+            m[i][i] = -2.0/dx/dx; m[i][i+1] = 1.0/dx/dx;
         }
         else if(i == n - 1){
-            m[i][i] = 1; m[i][i-1] = -0.5; 
+            m[i][i] = -2.0/dx/dx; m[i][i-1] = 1.0/dx/dx; 
         }
         else{
-            m[i][i] = 1; m[i][i+1] = -0.5; m[i][i-1] = -0.5;
+            m[i][i] = -2.0/dx/dx; m[i][i+1] = 1.0/dx/dx; m[i][i-1] = 1.0/dx/dx;
         }
     }
   return m;
@@ -69,15 +77,13 @@ double *multiply_mv(double **m, int row, int col, double *v){
     return b;
 }
 
-// vector addition
-// *v1 & *v2 are two vectors
+// vector correction
+// v and e are approximated solution and error
 // n is the size of the vector
-double *add_vv(double *v1, double *v2, int n){
-  double *v3 = new double[n];
+void correct(double *v, double *e, int n){
   for(int i = 0; i < n; i++){
-    v3[i] = v1[i] + v2[i];
+    v[i] = v[i] + e[i];
   }
-  return v3;
 }
 
 // maximum norm of a vector
@@ -95,71 +101,41 @@ double norm_max(double *v, int n){
 
 // Restriction module（1D）
 // Full-weighting restriction
-// *rf is the residual on the fine grid
-// n is the szie of residual vector
-// *rc is the residual on the coarse grid
-double *restrict(double *rf, int n){
-
-    // define the size of fine and coarse grid
-    int l1 = n; // fine grid
-    int l2 = (n + 1) / 2; // coarse grid
-
-    // allocate and initialize residual vector and restriction matrix
-    double *rc = new double[l2]; 
+// *rf and *rc are the residual on the fine and coarse grid
+// l1 and l2 are the number of nodes on the fine and coarse grid
+double *restrict(double *rf, int l1, double *rc, int l2){
+    // allocate and initialize restriction matrix
     double **R = allocate_mat(l2, l1);
     initialize_mat(R, l2, l1);
-
     // generate restriction matrix
-    for(int i = 0; i < l2; i++){
-        if(i == 0){
-            R[i][i*2] = 0.5;
-            R[i][i*2+1] = 0.25;
-        }
-        else if(i == l2 - 1){
-            R[i][2*i] = 0.5;
-            R[i][2*i-1] = 0.25;
-        }
-        else{
-            R[i][2*i-1] = 0.25;
-            R[i][2*i] = 0.5;
-            R[i][2*i+1] = 0.25;
-        }
+    for(int i = 0; i < l2; i++){      
+        R[i][2*i] = 0.25;
+        R[i][2*i+1] = 0.5;
+        R[i][2*i+2] = 0.25;
     }
-
     // apply the restriction matrix 
     rc = multiply_mv(R, l2, l1, rf);
-    delete[] R;
+    deallocate_mat(R, l2, l1);
     return rc;
 }
 
 // Prolongation module
 // Full-weighting restriction
-// *ec is the error on the coarse grid
-// n is the szie of error vector 
-// *ef is the the error on the fine grid
-double *prolong(double *ec, int n){
-
-    // define the size of coarse and fine grid
-    int l2 = n; // coarse grid
-    int l1 = 2*n-1; // fine grid
-
-    // allocate and initialize error vector and prolongation matrix
-    double *ef = new double [l1];
+// *ef and *ec are the error on the fine and coarse grid
+// l1 and l2 are the number of nodes on the fine and coarse grid
+double *prolong(double *ec, int l2, double *ef, int l1){
+    // allocate and initialize the prolongation matrix
     double **P = allocate_mat(l1, l2);
     initialize_mat(P, l1, l2);
-
     // generate prolongation matrix
-    for(int i = 0; i < l1; i++){
-        if(i % 2 == 0){P[i][i/2] = 1;} 
-        else{int j=(i - 1) / 2; 
-        P[i][j] = 0.5;  
-        P[i][j+1] = 0.5;
-        }
+    for(int i = 0; i < l2; i++){
+        P[2*i][i]   = 0.5;
+        P[2*i+1][i] = 1.0;
+        P[2*i+2][i] = 0.5;
     }
-
     // apply prolongation matrix
     ef = multiply_mv(P, l1, l2, ec);
-    delete[] P;
+    deallocate_mat(P, l1, l2);
     return ef;
 }
 
@@ -186,16 +162,15 @@ double *GS(int n,int iter, double **M, double *v, double *x) {
 
 // compute the residual
 // n is the dimension
-// M is the matrix
-// the system is expressed as Ax = v; 
-// input x here is the solution from the GS solver
-double *getResidual(double **M, double *v, double *x, int n){
-    double *result = new double[n];
-    double *vec = multiply_mv(M, n, n, x);
-    for (int i = 0; i < n; i++){
-        result[i] = v[i]-vec[i];
-    }
-    return result;
+// A is the matrix
+// r = f - Av
+void residual(double *r, double **A, \
+double *f, double *v, int n){
+  double *temp = multiply_mv(A, n, n, v);
+  for (int i = 0; i < n; i++){
+    r[i] = f[i]-temp[i];
+  }
+  delete[] temp;
 }
 
 // V_cycle multigrid method for 1D problem
@@ -206,38 +181,46 @@ double *getResidual(double **M, double *v, double *x, int n){
 // level is the current level of grid (from 1)
 // pre and post are number of pre- and post-relaxation 
 // num_level is the total number of grids 
-double *V_cycle(double **A, double *v, double *f, \
+double *V_cycle(double **A, double *v, double *f,\
 int num, int level, int pre, int post, int num_level){
     
+    // define necessary values and pointers
+    int num_c = (num - 1) / 2; // number of nodes on the coarse grid 
+    double dx = 1.0 / (num + 1); // grid spacing on the fine grid
+    double dxc = dx * 2; // grid spacing on the coarse grid
+    double *r = new double[num]; // residual pointer on the fine grid
+    double *rc = new double[num_c]; // residual pointer on the coarse grid
+    double *temp = new double[num_c] ; // temporary vector
+    double *e = new double[num_c]; // error on the coarse grid
+    double *ef = new double[num]; // error on the fine grid
+
     // pre-relaxation
-    A = three_stencil(num);
+    A = three_stencil(num, dx);
     v = GS(num, pre, A, f, v);
 
     // compute the residual for the fine grid
-    double *r = getResidual(A, f, v, num);
-
+    residual(r, A, f, v, num);
+    
     // restriction 
-    double *rc = restrict(r, num);
+    rc = restrict(r, num, rc, num_c);
     level = level + 1;
-    int num_c = (num + 1) / 2;
-
+    
     // inititalize the error vector
-    double *e = new double[num_c];
     initialize_vec(e, num_c);
 
     // inititalize the coefficient matrix
-    double **A_c = three_stencil(num_c);
+    double **A_c = three_stencil(num_c, dxc);
 
     // stop recursion at coarsest grid, otherwise continue recursion
     if(level == num_level){
         //solve the error equation
         e = GS(num_c, 1, A_c, rc, e);
-        double *temp = getResidual(A_c, rc, e, num_c);
+        residual(temp, A_c, rc, e, num_c);
         double error = norm_max(temp, num_c);
         double conv = 1e-7;
         while (error > conv){
             e = GS(num_c, 1, A_c, rc, e);
-            temp = getResidual(A_c, rc, e, num_c);
+            residual(temp, A_c, rc, e, num_c);
             error = norm_max(temp, num_c);
         }
     } else{
@@ -245,69 +228,107 @@ int num, int level, int pre, int post, int num_level){
     }
 
     // prolongation 
-    double *ef = prolong(e, num_c);
+    ef = prolong(e, num_c, ef, num);
+    level = level - 1;
 
     // correct the approximated solution
-    v = add_vv(v, ef, num);
+    correct(v, ef, num);
 
     // post-relaxation
     v = GS(num, post, A, f, v);
 
+    // free memory
+    delete[] r, rc, e, ef, temp;
+
     return v;
 }
 
-//added F-cycle multigrid code
-
+// F-cycle multigrid code
 double *F_cycle(double **A, double *v, double *f, \
 int num, int level, int pre, int post, int num_level) {
-   
+    
+    // define necessary values and pointers
+    int num_c = (num - 1) / 2; // number of nodes on the coarse grid 
+    double dx = 1.0 / (num + 1); // grid spacing on the fine grid
+    double dxc = dx * 2; // grid spacing on the coarse grid
+    double *r = new double[num]; // residual pointer on the fine grid
+    double *rc = new double[num_c]; // residual pointer on the coarse grid
+    double *temp = new double[num_c] ; // temporary vector
+    double *e = new double[num_c]; // error on the coarse grid
+    double *ef = new double[num]; // error on the fine grid
+
     // pre-smoothing
-    A = three_stencil(num);
+    A = three_stencil(num, dx);
     v = GS(num,pre,A,f,v);
 
     // compute the residual for the fine grid
-    double *r = getResidual(A,f,v,num);
+    residual(r, A, f, v, num);
 
     // restriction
-    double *rc = restrict(r, num);
-
+    rc = restrict(r, num, rc, num_c);
     level = level + 1;
-    int num_c = (num+1)/2;
 
     // initialize error vector
-    double *e = new double[num_c]; 
     initialize_vec(e,num_c);
 
-    double **A_c = three_stencil(num_c);
+    double **A_c = three_stencil(num_c, dxc);
+
     if (level == num_level) {
+        //solve the error equation
         e = GS(num_c, 1, A_c, rc, e);
+        residual(temp, A_c, rc, e, num_c);
+        double error = norm_max(temp, num_c);
+        double conv = 1e-7;
+        while (error > conv){
+            e = GS(num_c, 1, A_c, rc, e);
+            residual(temp, A_c, rc, e, num_c);
+            error = norm_max(temp, num_c);
+        }
     }
     else {
         e = F_cycle(A_c,e,rc,num_c,level,pre,post,num_level);
     }
 
-    double* ef = prolong(e,num_c);
-    v = add_vv(v,ef,num);
+    ef = prolong(e, num_c, ef, num);
+    level = level - 1;
+    correct(v, ef, num);
 
     //re-smoothing
-    v = GS(num,post,A,f,v);
-    r = getResidual(A,f,v,num);
+    v = GS(num, pre, A, f, v);
+    residual(r, A, f, v, num);
   
     //restriction
-    rc = restrict(r,num);
+    rc = restrict(r, num, rc, num_c);
+    level = level + 1;
 
+    // initialize error vector
+    initialize_vec(e,num_c);
 
     if (level == num_level) {
+        //solve the error equation
         e = GS(num_c, 1, A_c, rc, e);
+        residual(temp, A_c, rc, e, num_c);
+        double error = norm_max(temp, num_c);
+        double conv = 1e-7;
+        while (error > conv){
+            e = GS(num_c, 1, A_c, rc, e);
+            residual(temp, A_c, rc, e, num_c);
+            error = norm_max(temp, num_c);
+        }
     }
     else {
         e = F_cycle(A_c,e,rc,num_c,level,pre,post,num_level);
     }
 
     //prolongation
-    ef = prolong(e,num_c);
-    v = add_vv(v,ef,num);
-   
+    ef = prolong(e, num_c, ef, num);
+    level = level - 1;
+
+    correct(v, ef, num);
+
+    // free memory
+    delete[] r, rc, e, ef, temp;
+
    // post relaxation
     v = GS(num,post,A,f,v);
     return v;

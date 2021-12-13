@@ -19,11 +19,11 @@ using namespace std;
 
 // -----------------input data---------------------//
 int n = 64; // number of intervals
-int num = n + 1; // number of nodes
-double epsilon = 1e-7; // convergence criteria
+int num = n - 1; // number of nodes
+double epsilon = 1e-6; // convergence criteria
 int num_level = 3; // number of grids
-int pre  = 1; // number of pre-relaxation
-int post = 1; // number of post-relaxation
+int pre  = 2; // number of pre-relaxation
+int post = 2; // number of post-relaxation
 // ------------------------------------------------//
 
 int main(){
@@ -36,14 +36,17 @@ int main(){
     double *v  = new double[num]; // the aproximated solution
     double *r  = new double[num]; // the residual for the fine grid
 
+    double dx = 1.0/(num+1);
+
     // initialize the coefficient matrix
-    A = three_stencil(num);
+    A = three_stencil(num, dx);
     // initialize the right hand side
     initialize_vec(f, num);
     // initialize the initial guess
     for(int i = 0; i < num; i++){
-        v[i] = 0.5*(sin(3*M_PI*i/(num-1))+sin(10*M_PI*i/(num-1)));
+        v[i] = 0.5*(sin(3*M_PI*(i+1)/(num+1))+sin(10*M_PI*(i+1)/(num+1)));
     }
+    
     // initialize the max norm of residual
     double r_max = 1;
     // initialize the number of iterstions
@@ -52,13 +55,14 @@ int main(){
     // print the titles
     cout<<setw(10)<<"Iterations"<<"   "<<"Residual"<<endl;
 
+    //for(int i = 0; i < 1; i++){
     while(r_max > epsilon){
 
         // multigrid V-cycle
         v = F_cycle(A, v, f, num, level, pre, post, num_level);
 
         // compute the residual for the fine grid
-        r = getResidual(A, f, v, num);
+        residual(r, A, f, v, num);
     
         // compute maximum norm of the residual
         r_max = norm_max(r, num);
@@ -68,10 +72,11 @@ int main(){
         iter = iter + 1;
     }
 
+    /*
     cout<<"Approximated solution:"<<endl;
     for(int i = 0; i < num; i++){
-        cout<<fixed<<setprecision(5)<<v[i]<<endl;
-    }
+        cout<<fixed<<scientific<<v[i]<<endl;
+    }*/
 
     auto stop = high_resolution_clock::now();
 
