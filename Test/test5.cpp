@@ -16,14 +16,14 @@ using namespace std;
 
 // -----------------input data---------------------//
 int n = 64; // number of intervals
-int row = n + 1; // number of rows
-int col = n + 1; // number of columns
+int row = n - 1; // number of rows
+int col = n - 1; // number of columns
 int num = row * col; // number of nodes
-double epsilon = 1e-5; // convergence criteria
+double epsilon = 1e-6; // convergence criteria
 int num_level = 3; // number of grids
-int pre  = 1; // number of pre-relaxation
-int post = 1; // number of post-relaxation
-int n_thread = 8; // number of threads
+int pre  = 2; // number of pre-relaxation
+int post = 2; // number of post-relaxation
+int n_thread = 6; // number of threads
 // ------------------------------------------------//
 
 int main(){
@@ -36,13 +36,15 @@ int main(){
     double *v  = new double[num]; // the aproximated solution
     double *r  = new double[num]; // the residual for the fine grid
 
+    double dx = 1.0/(row+1);
+
     // initialize the coefficient matrix
-    A = five_stencil(row, col);
+    A = five_stencil(row, col, dx);
     // initialize the right hand side
     initialize_vec(f, num);
     // initialize the initial guess
     for(int i = 0; i < num; i++){
-        v[i] = 0.5*(sin(3*M_PI*i/(num-1))+sin(10*M_PI*i/(num-1)));
+        v[i] = 0.5*(sin(3*M_PI*(i+1)/(num+1))+sin(10*M_PI*(i+1)/(num+1)));
     }
     // initialize the max norm of residual
     double r_max = 1;
@@ -59,7 +61,7 @@ int main(){
         v = V_cycle(A, v, f, row, col, level, pre, post, num_level);
 
         // compute the residual for the fine grid
-        r = getResidual(A, f, v, num);
+        residual(r, A, f, v, num);
 
         // compute maximum norm of the residual
         r_max = norm_max(r, num);

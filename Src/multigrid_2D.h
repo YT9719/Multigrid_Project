@@ -15,6 +15,14 @@ double **allocate_mat(int row, int col){
     return m;
 }
 
+// deallocate memory 
+void deallocate_mat(double **A, int row, int col){
+  for(int i = 0; i < row; i++){
+    delete[] A[i];
+  }
+  delete[] A;
+}
+
 // initialize a matrix to all zero
 // row and col are number of rows and columns
 void initialize_mat(double **m, int row, int col)
@@ -28,18 +36,18 @@ void initialize_mat(double **m, int row, int col)
 
 // generate coefficient matrix for five-point stencil
 // row and col are number of rows and columns of the grid
-double **five_stencil(int row, int col){
+double **five_stencil(int row, int col, double dx){
   int i, j, d;
   d = row * col;
   double **m = allocate_mat(d, d);
   initialize_mat(m, d, d);
   for(int k = 0; k < d; k++){
       i = k/row; j = k-i*row;
-      if(i>0)     {m[k][k-row] = -0.25;}
-      if(i<col-1) {m[k][k+row] = -0.25;}
-      if(j>0)     {m[k][k-1] = -0.25;}
-      if(j<row-1) {m[k][k+1] = -0.25;}
-      m[k][k] = 1.0;
+      if(i>0)     {m[k][k-row] = 1.0/dx/dx;}
+      if(i<col-1) {m[k][k+row] = 1.0/dx/dx;}
+      if(j>0)     {m[k][k-1] = 1.0/dx/dx;}
+      if(j<row-1) {m[k][k+1] = 1.0/dx/dx;}
+      m[k][k] = -4.0/dx/dx;
     }
   return m;
 }
@@ -68,15 +76,13 @@ double *multiply_mv(double **m, int row, int col, double *v){
     return b;
 }
 
-// vector addition
-// *v1 & *v2 are two vectors
+// vector correction
+// v and e are approximated solution and error
 // n is the size of the vector
-double *add_vv(double *v1, double *v2, int n){
-  double *v3 = new double[n];
+void correct(double *v, double *e, int n){
   for(int i = 0; i < n; i++){
-    v3[i] = v1[i] + v2[i];
+    v[i] = v[i] + e[i];
   }
-  return v3;
 }
 
 // maximum norm of a vector
@@ -97,89 +103,30 @@ double norm_max(double *v, int n){
 // *rf is the residual on the fine grid
 // row and col are number of rows and columns of fine grid
 // *rc is the residual on the coarse grid
-double *restrict_2D(double *rf, int row, int col){
-  int num, row_c, col_c, num_c;
-  num = row * col; // number of nodes of fine grid 
-  row_c = (row + 1) / 2; // number of rows of coarse grid
-  col_c = (col + 1) / 2; // number of columns of coarse grid
-  num_c = row_c * col_c; // number of nodes of coarse grid
-  double *rc = new double[num_c];
+double *restrict_2D(double *rf, int row, int col,\
+double *rc, int row_c, int col_c){
+  int num = row * col; // number of nodes of fine grid 
+  int num_c = row_c * col_c; // number of nodes of coarse grid
   double **R = allocate_mat(num_c, num);
   initialize_mat(R, num_c, num);
   int m, n;
   for(int i = 0; i < row_c; i++){
       for(int j = 0; j < col_c; j++){
-          m = i * col_c + j;
-          n = i * 2 * col + j * 2;
-          if(i == 0){
-              if (j == 0){
-                  R[m][n]       = 1.0/4;
-                  R[m][n+1]     = 1.0/8;
-                  R[m][n+col]   = 1.0/8;
-                  R[m][n+col+1] = 1.0/16;
-              } else if(j == col_c - 1){
-                  R[m][n-1]     = 1.0/8;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+col-1] = 1.0/16;
-                  R[m][n+col]   = 1.0/8;
-              }else{
-                  R[m][n-1]     = 1.0/8;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+1]     = 1.0/8;
-                  R[m][n+col-1] = 1.0/16;
-                  R[m][n+col]   = 1.0/8;
-                  R[m][n+col+1] = 1.0/16;
-              }
-          } else if (i == row_c - 1){
-              if (j == 0){
-                  R[m][n-col]   = 1.0/8;
-                  R[m][n-col+1] = 1.0/16;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+1]     = 1.0/8;
-              } else if(j == col_c - 1){
-                  R[m][n-col-1] = 1.0/16;
-                  R[m][n-col]   = 1.0/8;
-                  R[m][n-1]     = 1.0/8;
-                  R[m][n]       = 1.0/4;
-              }else{
-                  R[m][n-col-1] = 1.0/16;
-                  R[m][n-col]   = 1.0/8;
-                  R[m][n-col+1] = 1.0/16;
-                  R[m][n-1]     = 1.0/8;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+1]     = 1.0/8;
-              }
-          }else{
-              if (j == 0){
-                  R[m][n-col]   = 1.0/8;
-                  R[m][n-col+1] = 1.0/16;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+1]     = 1.0/8;
-                  R[m][n+col]   = 1.0/8;
-                  R[m][n+col+1] = 1.0/16;
-              } else if(j == col_c - 1){
-                  R[m][n-col-1] = 1.0/16;
-                  R[m][n-col]   = 1.0/8;
-                  R[m][n-1]     = 1.0/8;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+col-1] = 1.0/16;
-                  R[m][n+col]   = 1.0/8;
-              }else{
-                  R[m][n-col-1] = 1.0/16;
-                  R[m][n-col]   = 1.0/8;
-                  R[m][n-col+1] = 1.0/16;
-                  R[m][n-1]     = 1.0/8;
-                  R[m][n]       = 1.0/4;
-                  R[m][n+1]     = 1.0/8;
-                  R[m][n+col-1] = 1.0/16;
-                  R[m][n+col]   = 1.0/8;
-                  R[m][n+col+1] = 1.0/16;
-              }
-          }
-      }
-  }
+            m = i * col_c + j;
+            n = i * 2 * col + j * 2;
+            R[m][n] = 1.0/16;
+            R[m][n+1] = 2.0/16;
+            R[m][n+2] = 1.0/16;
+            R[m][n+col] = 2.0/16;
+            R[m][n+col+1] = 4.0/16;
+            R[m][n+col+2] = 2.0/16;
+            R[m][n+col*2] = 1.0/16;
+            R[m][n+col*2+1] = 2.0/16;
+            R[m][n+col*2+2] = 1.0/16;
+        }
+    }
     rc = multiply_mv(R, num_c, num, rf);
-    delete[] R;
+    deallocate_mat(R, num_c, num);
     return rc;
 }
 
@@ -188,13 +135,11 @@ double *restrict_2D(double *rf, int row, int col){
 // *ec is the error on the coarse grid
 // row_c and col_c are number of rows and columns of coarse grid
 // *ef is the error on the fine grid
-double *prolong_2D(double *ec, int row_c, int col_c){
-    int num_c, num, row, col;
+double *prolong_2D(double *ec, int row_c, int col_c,\
+double *ef, int row, int col){
+    int num_c, num;
     num_c = row_c * col_c; // number of nodes of coarse grid
-    row = row_c * 2 - 1; // number of rows of fine grid
-    col = col_c * 2 - 1; // number of columns of fine grid
     num = row * col; // number of nodes of fine grid 
-    double *ef = new double [num];
     double **P = allocate_mat(num, num_c);
     initialize_mat(P, num, num_c);
     int m, n;
@@ -202,75 +147,19 @@ double *prolong_2D(double *ec, int row_c, int col_c){
         for(int j = 0; j < col_c; j++){
             m = i * col_c + j;
             n = i * 2 * col + j * 2;
-            if(i == 0){
-                if (j == 0){
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                } else if(j == col_c - 1){
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                }else{
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                }
-            } else if (i == row_c - 1){
-                if (j == 0){
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                } else if(j == col_c - 1){
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                }else{
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                }
-            }else{
-                if (j == 0){
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                } else if(j == col_c - 1){
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                }else{
-                    P[n-col-1][m] = 1.0/4;
-                    P[n-col][m]   = 1.0/2;
-                    P[n-col+1][m] = 1.0/4;
-                    P[n-1][m]     = 1.0/2;
-                    P[n][m]       = 1.0/1;
-                    P[n+1][m]     = 1.0/2;
-                    P[n+col-1][m] = 1.0/4;
-                    P[n+col][m]   = 1.0/2;
-                    P[n+col+1][m] = 1.0/4;
-                }
-            }
+            P[n][m] = 1.0/4;
+            P[n+1][m] = 2.0/4;
+            P[n+2][m] = 1.0/4;
+            P[n+col][m] = 2.0/4;
+            P[n+col+1][m] = 4.0/4;
+            P[n+col+2][m] = 2.0/4;
+            P[n+col*2][m] = 1.0/4;
+            P[n+col*2+1][m] = 2.0/4;
+            P[n+col*2+2][m] = 1.0/4;
         }
     }
     ef = multiply_mv(P, num, num_c, ec);
-    delete[] P;
+    deallocate_mat(P, num, num_c);
     return ef;
 }
 
@@ -297,16 +186,15 @@ double *GS(int n,int iter, double **M, double *v, double *x) {
 
 // compute the residual
 // n is the dimension
-// M is the matrix
-// the system is expressed as Ax = v; 
-// input x here is the solution from the GS solver
-double *getResidual(double **M, double *v, double *x, int n){
-    double *result = new double[n];
-    double *vec = multiply_mv(M, n, n, x);
-    for (int i = 0; i < n; i++){
-        result[i] = v[i]-vec[i];
-    }
-    return result;
+// A is the matrix
+// r = f - Av
+void residual(double *r, double **A, \
+double *f, double *v, int n){
+  double *temp = multiply_mv(A, n, n, v);
+  for (int i = 0; i < n; i++){
+    r[i] = f[i]-temp[i];
+  }
+  delete[] temp;
 }
 
 // V_cycle multigrid method for 2D problem
@@ -319,40 +207,47 @@ double *getResidual(double **M, double *v, double *x, int n){
 // num_level is the total number of grids 
 double *V_cycle(double **A, double *v, double *f,\
  int row, int col, int level, int pre, int post, int num_level){
-    // calculate the total number of nodes
+    
+    // define necessary values and pointers
     int num = row * col;
+    int row_c = (row-1)/2;
+    int col_c = (col-1)/2;
+    int num_c = row_c*col_c;
+    double dx = 1.0/(row + 1);
+    double dxc = dx*2;
+    double *r = new double[num]; 
+    double *rc = new double[num_c]; 
+    double *temp = new double[num_c] ; 
+    double *e = new double[num_c];
+    double *ef = new double[num];
 
     // pre-relaxation
-    A = five_stencil(row, col);
+    A = five_stencil(row, col, dx);
     v = GS(num, pre, A, f, v);
 
     // compute the residual for the fine grid
-    double *r = getResidual(A, f, v, num);
+    residual(r, A, f, v, num);
 
     // restriction 
-    double *rc = restrict_2D(r, row, col);
+    rc = restrict_2D(r, row, col, rc, row_c, col_c);
     level = level + 1;
-    int row_c = (row + 1) / 2;
-    int col_c = (col + 1) / 2;
-    int num_c = row_c * col_c;
 
     // inititalize the error vector
-    double *e = new double[num_c];
     initialize_vec(e, num_c);
 
     // inititalize the coefficient matrix
-    double **A_c = five_stencil(row_c, col_c);
+    double **A_c = five_stencil(row_c, col_c, dxc);
 
     // stop recursion at coarsest grid, otherwise continue recursion
     if(level == num_level){
         //solve the error equation
         e = GS(num_c, 1, A_c, rc, e);
-        double *temp = getResidual(A_c, rc, e, num_c);
+        residual(temp, A_c, rc, e, num_c);
         double error = norm_max(temp, num_c);
         double conv = 1e-7;
         while (error > conv){
             e = GS(num_c, 1, A_c, rc, e);
-            temp = getResidual(A_c, rc, e, num_c);
+            residual(temp, A_c, rc, e, num_c);
             error = norm_max(temp, num_c);
         }
     } else{
@@ -360,13 +255,16 @@ double *V_cycle(double **A, double *v, double *f,\
     }
 
     // prolongation 
-    double *ef = prolong_2D(e, row_c, col_c);
+    ef = prolong_2D(e, row_c, col_c, ef, row, col);
 
     // correct the approximated solution
-    v = add_vv(v, ef, num);
+    correct(v, ef, num);
 
     // post-relaxation
     v = GS(num, post, A, f, v);
+
+    // free memory
+    delete[] r, rc, e, ef, temp;
 
     return v;
 }
